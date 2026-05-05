@@ -31,10 +31,6 @@ cd AI-agent-demo
 pip install -r requirements.txt
 ```
 
-### 2. 安装依赖
-```
-pip install -r requirements.txt
-```
 
 ### 3. 配置说明
 在项目根目录新建 .env 文件，填写：
