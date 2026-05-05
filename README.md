@@ -39,7 +39,7 @@ pip install -r requirements.txt
 ### 3. 配置说明
 在项目根目录新建 .env 文件，填写：
 ```
-DASHSCOPE_API_KEY=你的API密钥
+DASHSCOPE_API_KEY="你的API密钥"
 ```
 
 ### 4. 项目启动
