@@ -1,7 +1,13 @@
 import streamlit as st
 import sys
 from pathlib import Path
+import os
+# 加载 .env 配置
+from dotenv import load_dotenv
+load_dotenv()
 
+#读取用户专属ID
+USER_ID = os.getenv("USER_ID", "user_default")
 # ==================== 关键：导入你的 agent.py 里的核心对象 ====================
 # 这里假设 agent.py 和 app.py 在同一个文件夹
 from agent import graph, HumanMessage, AIMessage
@@ -36,12 +42,9 @@ if prompt := st.chat_input("输入你的问题..."):
     # 2. 调用 Agent
     with st.chat_message("assistant"):
         with st.spinner("正在思考..."):
-            # ==========================================
-            #  共享记忆:使用固定的 user_id
-            # ==========================================
             config = {
                 "configurable": {
-                    "user_id": "user1",  # 所有人共用同一个 user_id
+                    "user_id": USER_ID,  # 使用你的专属ID
                     "thread_id": "thread1"
                 }
             }
