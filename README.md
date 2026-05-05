@@ -40,6 +40,7 @@ pip install -r requirements.txt
 在项目根目录新建 .env 文件，填写：
 ```
 DASHSCOPE_API_KEY="你的API密钥"
+USER_ID=user1  # 用户专属记忆ID，首次使用请修改为自己的唯一标识,例如 user_xiaoming
 ```
 
 ### 4. 项目启动
