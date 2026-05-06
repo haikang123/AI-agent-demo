@@ -7,7 +7,7 @@ import numpy as np      # 向量数据运算（支撑Chroma向量库存储）
 from datetime import datetime  # 时间管理 → 【记忆过期自动清理】
 from pathlib import Path       # 优雅处理文件路径（跨Windows/Mac）
 from typing import TypedDict, Annotated, Sequence, List, Optional, Dict
-
+import requests
 # 加载 .env 配置
 from dotenv import load_dotenv
 load_dotenv()
@@ -56,9 +56,37 @@ from langchain.embeddings import CacheBackedEmbeddings
 
 # ==================== 第2层：大模型, 统一向量库初始化 ====================
 # 大模型实例化
-model = ChatTongyi(model_name="qwen-plus", temperature=CHAT_TEMPERATURE, dashscope_api_key=API_KEY)
-llm_rag = ChatTongyi(model_name="qwen-plus", temperature=RAG_TEMPERATURE, dashscope_api_key=API_KEY)
-llm_chat = ChatTongyi(model_name="qwen-turbo", temperature=CHAT_TEMPERATURE, dashscope_api_key=API_KEY)
+try:
+    # 1. 初始化所有通义千问大模型实例
+    model = ChatTongyi(model_name="qwen-plus", temperature=CHAT_TEMPERATURE, dashscope_api_key=API_KEY)
+    llm_rag = ChatTongyi(model_name="qwen-plus", temperature=RAG_TEMPERATURE, dashscope_api_key=API_KEY)
+    llm_chat = ChatTongyi(model_name="qwen-turbo", temperature=CHAT_TEMPERATURE, dashscope_api_key=API_KEY)
+
+    # 2. API可用性预校验（用最快的模型做一次轻量调用，提前发现问题）
+    print(" 正在校验通义千问API连接...")
+    test_resp = llm_chat.invoke("ping")
+    if not test_resp.content:
+        raise ConnectionError("API调用无有效返回，请检查密钥有效性与网络连接")
+    print(" 通义千问API初始化成功，连接正常")
+
+except Exception as e:
+    error_str = str(e).lower()
+    error_tips = {
+        "invalidapikey": "API密钥无效，请检查 .env 中的 DASHSCOPE_API_KEY 是否正确",
+        "apikeyexpired": "API密钥已过期，请前往阿里云控制台更换密钥",
+        "insufficientquota": "API配额/余额不足，请查看控制台剩余额度",
+        "throttling": "请求被限流，请稍后再试",
+        "modelnotfound": "模型名称配置错误，请检查 model_name 参数"
+    }
+    final_tip = "API调用错误，请稍后重试"
+    for key, tip in error_tips.items():
+        if key in error_str:
+            final_tip = tip
+            break
+    if final_tip == "API调用错误，请稍后重试":
+        final_tip = f"API调用错误：{str(e)}"
+    print(f" API初始化失败：{final_tip}")
+    raise Exception(f"API初始化失败：{final_tip}") from e
 
 embedding = DashScopeEmbeddings(model="text-embedding-v2", dashscope_api_key=API_KEY)
 
@@ -409,9 +437,29 @@ prompt = ChatPromptTemplate.from_messages([
 class State(MessagesState):
     recall_memories: List[str]
 
+# 辅助函数，用于安全提取消息中的文本内容
+def safe_get_text(msg):
+    """安全提取消息中的文本内容，兼容多模态/特殊格式"""
+    content = msg.content
+    if isinstance(content, str):
+        return content
+    elif isinstance(content, list):
+        # 处理多模态格式，提取所有文本
+        texts = []
+        for item in content:
+            if isinstance(item, dict) and "text" in item:
+                texts.append(item["text"])
+            elif isinstance(item, str):
+                texts.append(item)
+        return " ".join(texts)
+    elif content is None:
+        return ""
+    else:
+        # 其他类型强制转字符串，避免报错
+        return str(content)
 # 前置节点：强制加载用户记忆
 def load_memories(state: State, config: RunnableConfig):
-    convo_str = "\n".join([msg.content for msg in state["messages"]])
+    convo_str = "\n".join([safe_get_text(msg) for msg in state["messages"]])
     convo_str = convo_str[:800]  # 简单截断防止上下文过长
     recall_memories = search_recall_memory.invoke(convo_str, config)
     return {"recall_memories": recall_memories}
