@@ -250,7 +250,7 @@ class AIRAG:
         if docs_to_process:
             split_docs = self.text_splitter.split_documents(docs_to_process)
             self.vectorstore.add_documents(split_docs)
-            print(f"🚀 已写入向量库，共新增 {len(split_docs)} 个文档块")
+            print(f" 已写入向量库，共新增 {len(split_docs)} 个文档块")
 
         # 5. 保存哈希记录
         self._save_hash_record()
